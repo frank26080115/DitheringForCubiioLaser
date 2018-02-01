@@ -34,12 +34,12 @@ namespace Cyotek.Drawing.Imaging.ColorReduction
     {
       if (matrix == null)
       {
-        throw new ArgumentNullException(nameof(matrix));
+        throw new ArgumentNullException("matrix");
       }
 
       if (matrix.Length == 0)
       {
-        throw new ArgumentException("Matrix is empty.", nameof(matrix));
+        throw new ArgumentException("Matrix is empty.", "matrix");
       }
 
       _matrix = matrix;
