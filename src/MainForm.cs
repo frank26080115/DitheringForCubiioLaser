@@ -8,6 +8,7 @@ using Cyotek.DitheringTest.Helpers;
 using Cyotek.Drawing;
 using Cyotek.Drawing.Imaging.ColorReduction;
 using Cyotek.Windows.Forms;
+using System.Drawing.Drawing2D;
 
 /* Dithering an image using the Floyd–Steinberg algorithm in C#
  * http://www.cyotek.com/blog/dithering-an-image-using-the-floyd-steinberg-algorithm-in-csharp
@@ -115,7 +116,7 @@ namespace Cyotek.DitheringTest
 
       this.CleanUpTransformed();
 
-      image = _image;
+      image = ResizeImage(_image, _image.Width / 2, _image.Height / 2);
       size = image.Size;
 
       originalData = image.GetPixelsFrom32BitArgbImage();
@@ -150,6 +151,64 @@ namespace Cyotek.DitheringTest
 
       _transformed = originalData.ToBitmap(size);
       transformedImageBox.Image = _transformed;
+    }
+
+    /// <summary>
+    /// Resize the image to the specified width and height.
+    /// https://stackoverflow.com/questions/1922040/resize-an-image-c-sharp
+    /// </summary>
+    /// <param name="image">The image to resize.</param>
+    /// <param name="width">The width to resize to.</param>
+    /// <param name="height">The height to resize to.</param>
+    /// <returns>The resized image.</returns>
+    public static Bitmap ResizeImage(Image image, int width, int height)
+    {
+        var destRect = new Rectangle(0, 0, width, height);
+        var destImage = new Bitmap(width, height);
+
+        destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+        using (var graphics = Graphics.FromImage(destImage))
+        {
+            graphics.CompositingMode = CompositingMode.SourceCopy;
+            graphics.CompositingQuality = CompositingQuality.HighQuality;
+            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            graphics.SmoothingMode = SmoothingMode.HighQuality;
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+            using (var wrapMode = new ImageAttributes())
+            {
+                wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+                graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+            }
+        }
+
+        return destImage;
+    }
+
+    public static Bitmap DoubleImageSize(Bitmap image)
+    {
+        int width = image.Width * 2;
+        int height = image.Height * 2;
+        var destRect = new Rectangle(0, 0, width, height);
+        var destImage = new Bitmap(width, height);
+        destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+        using (var graphics = Graphics.FromImage(destImage))
+        {
+            for (int x = 0; x < image.Width; x++)
+            {
+                for (int y = 0; y < image.Height; y++)
+                {
+                    graphics.FillRectangle(new SolidBrush(image.GetPixel(x, y)), new Rectangle(x * 2, y * 2, 2, 2));
+                }
+            }
+        }
+        return destImage;
+    }
+
+    public static Bitmap HalfImageSize(Bitmap image)
+    {
+        return ResizeImage(image, image.Width / 2, image.Height / 2);
     }
 
     private void DefineImageBoxes(object sender, out ImageBox source, out ImageBox dest)
@@ -240,6 +299,19 @@ namespace Cyotek.DitheringTest
     {
       this.CleanUpOriginal();
 
+        if (bitmap.Width > 1000 && bitmap.Height <= 1000)
+        {
+            MessageBox.Show("Warning: image width is greater than the limit of 1000 for use with Cubiio.", "Size Limit Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        else if (bitmap.Width <= 1000 && bitmap.Height > 1000)
+        {
+            MessageBox.Show("Warning: image height is greater than the limit of 1000 for use with Cubiio.", "Size Limit Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        else if (bitmap.Width > 1000 && bitmap.Height > 1000)
+        {
+            MessageBox.Show("Warning: image width and height are both greater than the limit of 1000 for use with Cubiio.", "Size Limit Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
       // Create a copy of the source bitmap.
       // Two reasons:
       //    1. The copy routine will ensure a 32bit ARGB image is returned as the unsafe code
@@ -250,7 +322,7 @@ namespace Cyotek.DitheringTest
 
       _image = bitmap.Copy();
 
-      originalImageBox.Image = _image;
+      originalImageBox.Image = HalfImageSize(_image);
       originalImageBox.ActualSize();
 
       this.CreateTransformedImage();
@@ -338,20 +410,30 @@ namespace Cyotek.DitheringTest
       using (FileDialog dialog = new SaveFileDialog
                                  {
                                    Title = "Save Image As",
-                                   DefaultExt = "png",
-                                   Filter = "Portable Networks Graphic (*.png)|*.png|All files (*.*)|*.*"
+                                   DefaultExt = "bmp",
+                                   Filter = "Bitmap 24-bit (*.bmp)|*.bmp|All files (*.*)|*.*"
                                  })
       {
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
-          try
-          {
-            _transformed.Save(dialog.FileName, ImageFormat.Png);
-          }
-          catch (Exception ex)
-          {
-            MessageBox.Show(string.Format("Failed to save image. {0}", ex.GetBaseException().Message), "Open Image", MessageBoxButtons.OK, MessageBoxIcon.Error);
-          }
+            string justname = Path.GetFileNameWithoutExtension(Path.GetFileName(dialog.FileName));
+            if (justname.Length > 8)
+            {
+                MessageBox.Show("Warning: File name is longer than 8 characters, it won't work with Cubiio.", "File Name Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            if (justname.Contains("~"))
+            {
+                MessageBox.Show("Warning: File name contains \"~\", it won't work with Cubiio.", "File Name Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            try
+            {
+                Bitmap saveme = DoubleImageSize(_transformed);
+                saveme.Save(dialog.FileName, ImageFormat.Bmp);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(string.Format("Failed to save image. {0}", ex.GetBaseException().Message), "Open Image", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
       }
     }
