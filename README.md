@@ -1,3 +1,12 @@
+Modified for Cubiio
+===================
+
+I forked and modified this project from Cyotek https://github.com/cyotek/Dithering
+
+I modified it to scale the images so it works nicer with a Cubiio laser engraver
+
+The original README is below
+
 Image Dithering using C#
 ========================
 

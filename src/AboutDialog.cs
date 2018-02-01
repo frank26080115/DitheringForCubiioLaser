@@ -53,6 +53,18 @@ namespace Cyotek.DitheringTest
       }
     }
 
+    private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+    {
+        try
+        {
+            Process.Start("http://www.eleccelerator.com");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.GetBaseException().Message, this.Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     #endregion
   }
 }
